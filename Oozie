@@ -1,0 +1,2 @@
+In Sqoop action if we import the data in hive table always add the file tag with the hive-ste.xml location.
+In Shell actio never create a file in any windows ide like otepad otherwise it will give an miguiding error "directory or file not found, so always create the shell file in linux vim mode and copy that file in hdfs location.then in exec give only file name and in files give the full path of hdfs location of shell script.
