@@ -22,8 +22,8 @@ public class WordCountDriver {
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(LongWritable.class);
 
-        FileInputFormat.addInputPath(conf, new Path("/user/abc.txt"));
-        FileOutputFormat.setOutputPath(conf,new Path("/user"));
+        FileInputFormat.addInputPath(conf, new Path("/user/jainaviral901015/wordcount.txt"));
+        FileOutputFormat.setOutputPath(conf,new Path("/user/jainaviral901015/wordcount"));
 
         Boolean result = job.waitForCompletion(true);
 
