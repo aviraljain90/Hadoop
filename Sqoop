@@ -1,0 +1,274 @@
+##Sqoop Import Flow - 
+> First fetches only 1 record for metadata
+> Create a java code with the metadata details (/tmp/username/compile/table_name.java)
+> build jar file 
+> connect to resource manager for applicatipn master
+> creates a bounding val query - select min(primarykey/splitby column),max(primarykey/splitby column) from table to split the records in number of mappers
+> split size = difference of max - min / number of mappers
+> submit the mapreduce job
+> defalut output fileformat is textfile delimited by comma
+
+
+# To list databases ------------
+sqoop list-databases \
+--connect jdbc:mysql://cxln2.c.thelab-240901.internal \
+--username sqoopuser \
+--password NHkkP876rp
+
+# To list tables from retail_db --------
+sqoop list-tables \
+--connect jdbc:mysql://cxln2.c.thelab-240901.internal/retail_db \
+--username sqoopuser \
+--password NHkkP876rp
+
+# To select data from table and directly print to console --------
+sqoop eval \
+--connect jdbc:mysql://cxln2.c.thelab-240901.internal/retail_db \
+--username sqoopuser \
+--password NHkkP876rp \
+-e "select * from orders limit 10"
+
+# To select data from table and directly print to console --------
+sqoop eval \
+--connect jdbc:mysql://cxln2.c.thelab-240901.internal/retail_db \
+--username sqoopuser \
+--password NHkkP876rp \
+--query "select * from orders limit 10"
+
+# To redirect result and logs to file
+sqoop eval  \
+--connect jdbc:mysql://cxln2.c.thelab-240901.internal/retail_db \
+--username sqoopuser \
+--password NHkkP876rp \
+--query "select * from orders limit 10" 1>query.out 2>query.err
+
+# To import orders table to HDFS sqoop_import directory  (specify child directory)
+sqoop import  \
+--connect jdbc:mysql://cxln2.c.thelab-240901.internal/retail_db \
+--username sqoopuser \
+--password NHkkP876rp \
+--table orders \
+--target-dir /user/jainaviral901015/sqoop_import/retail_db/orders
+
+# To import order_items table to HDFS warehouse directory   (specify parent directory)
+sqoop import  \
+--connect jdbc:mysql://cxln2.c.thelab-240901.internal/retail_db \
+--username sqoopuser \
+--password NHkkP876rp \
+--table order_items \
+--warehouse-dir /user/jainaviral901015/sqoop_import/retail_db/
+
+# --append (For delta load)
+sqoop import  \
+--connect jdbc:mysql://cxln2.c.thelab-240901.internal/retail_db \
+--username sqoopuser \
+--password NHkkP876rp \
+--table order_items \
+--warehouse-dir /user/jainaviral901015/sqoop_import/retail_db/ \
+--append
+
+# --delete-target-dir (For truncate load)
+sqoop import  \
+--connect jdbc:mysql://cxln2.c.thelab-240901.internal/retail_db \
+--username sqoopuser \
+--password NHkkP876rp \
+--table order_items \
+--warehouse-dir /user/jainaviral901015/sqoop_import/retail_db/ \
+--delete-target-dir
+
+# Change the number of mappers  (Need approval from source team for high number of parallel threads)
+sqoop import  \
+--connect jdbc:mysql://cxln2.c.thelab-240901.internal/retail_db \
+--username sqoopuser \
+--password NHkkP876rp \
+--table order_items \
+--warehouse-dir /user/jainaviral901015/sqoop_import/retail_db/ \
+--delete-target-dir \
+--num-mappers 8
+
+# Import with other file formats as-avrodatafile (.avro files will be created under warehouse dir and avsc file will be created under home directory)
+sqoop import -Dmapreduce.job.user.classpath.first=true \
+--connect jdbc:mysql://cxln2.c.thelab-240901.internal/retail_db \
+--username sqoopuser \
+--password NHkkP876rp \
+--table order_items \
+--warehouse-dir /user/jainaviral901015/sqoop_import/retail_db/ \
+--delete-target-dir \
+--as-avrodatafile
+
+sqoop import \
+--connect jdbc:mysql://cxln2.c.thelab-240901.internal/retail_db \
+--username sqoopuser \
+--password NHkkP876rp \
+--table order_items \
+--warehouse-dir /user/jainaviral901015/sqoop_import/retail_db/ \
+--delete-target-dir \
+--as-sequencefile
+
+sqoop import \
+--connect jdbc:mysql://cxln2.c.thelab-240901.internal/retail_db \
+--username sqoopuser \
+--password NHkkP876rp \
+--table order_items \
+--warehouse-dir /user/jainaviral901015/sqoop_import/retail_db/ \
+--delete-target-dir \
+--as-parquetfile
+
+# compression  -z or --compress  (default compression .gz)  compression codec enabled for to check (/etc/hadoop/conf/core-site.xml)
+sqoop import  \
+--connect jdbc:mysql://cxln2.c.thelab-240901.internal/retail_db \
+--username sqoopuser \
+--password NHkkP876rp \
+--table order_items \
+--warehouse-dir /user/jainaviral901015/sqoop_import/retail_db/ \
+--delete-target-dir \
+--num-mappers 8 \
+-z
+
+sqoop import  \
+--connect jdbc:mysql://cxln2.c.thelab-240901.internal/retail_db \
+--username sqoopuser \
+--password NHkkP876rp \
+--table order_items \
+--warehouse-dir /user/jainaviral901015/sqoop_import/retail_db/ \
+--delete-target-dir \
+--num-mappers 8 \
+-z \
+--compression-codec org.apache.hadoop.io.compress.SnappyCodec
+
+# Customizing Sqoop Import Filtered Data from source table 
+%% --columns
+sqoop import  \
+--connect jdbc:mysql://cxln2.c.thelab-240901.internal/retail_db \
+--username sqoopuser \
+--password NHkkP876rp \
+--table customers \
+--warehouse-dir /user/jainaviral901015/sqoop_import/retail_db/ \
+--delete-target-dir \
+--num-mappers 8 \
+--columns customer_id,customer_fname,customer_lname,customer_street,customer_city,customer_state,customer_zipcode
+
+%% --boundary-query
+sqoop import  \
+--connect jdbc:mysql://cxln2.c.thelab-240901.internal/retail_db \
+--username sqoopuser \
+--password NHkkP876rp \
+--table order_items \
+--warehouse-dir /user/jainaviral901015/sqoop_import/retail_db/ \
+--delete-target-dir \
+--num-mappers 8 \
+--boundary-query "SELECT 1,172198"
+
+%% --where
+sqoop import  \
+--connect jdbc:mysql://cxln2.c.thelab-240901.internal/retail_db \
+--username sqoopuser \
+--password NHkkP876rp \
+--table orders \
+--warehouse-dir /user/jainaviral901015/sqoop_import/retail_db/ \
+--delete-target-dir \
+--num-mappers 8 \
+--where "order_status IN ('COMPLETE','CLOSED') AND ORDER_DATE like '2013-08%'" 
+
+%% --split-by
+sqoop import  \
+--connect jdbc:mysql://cxln2.c.thelab-240901.internal/retail_db \
+--username sqoopuser \
+--password NHkkP876rp \
+--table order_items \
+--warehouse-dir /user/jainaviral901015/sqoop_import/retail_db/ \
+--delete-target-dir \
+--num-mappers 8 \
+--split-by order_item_order_id
+
+%% --query  (Mandatory - target director , $CONDITIONS, split by for multiple mappers)
+sqoop import  \
+--connect jdbc:mysql://cxln2.c.thelab-240901.internal/retail_db \
+--username sqoopuser \
+--password NHkkP876rp \
+--target-dir /user/jainaviral901015/sqoop_import/retail_db/order_count_by_date \
+--delete-target-dir \
+--query "select order_date,count(1) from orders where \$CONDITIONS group by order_date" \
+--split-by order_date
+
+%% In case of non numeric split by column we need to specify below condition
+   -Dorg.apache.sqoop.splitter.allow_text_splitter=true
+%% In case of comoposite key in source table need to mention the column which is the first column in index/key
+%% IF no primary key, mandatory to give split by (at indexed numeric column) or perform with single mapper 
+   
+%% Output file control parameters 
+--enclosed-by '"'
+--escaped-by '\'
+--fields-terminated-by '|'
+--lines-terminated-by ';'
+--mysql-delimiters
+--optionally-enclosed-by '"'  
+   
+%% If there is no primary key autoreset to one mapper 
+sqoop import  \
+--connect jdbc:mysql://cxln2.c.thelab-240901.internal/retail_db \
+--username sqoopuser \
+--password NHkkP876rp \
+--table order_items \
+--warehouse-dir /user/jainaviral901015/sqoop_import/retail_db/ \
+--delete-target-dir \
+--num-mappers 8 \
+--autoreset-to-one-mapper
+   
+%% Handling NULL Values --> Required if we create HIVE table on top of text data --> Because everything is treeted by STRING 
+--null-non-string '-1'
+--null-string '-1'
+
+%% Import all tables 
+sqoop import-all-tables \
+--warehouse-dir 
+--autoreset-to-one-mapper
+--exclude-tables    
+
+# Create Empty Hive Table
+sqoop create-hive-table \
+--connect jdbc:mysql://cxln2.c.thelab-240901.internal/retail_db \
+--username sqoopuser \
+--password NHkkP876rp \
+--table orders \
+--hive-database jainaviral901015
+
+# If table does not exist create the table and Append the data into hive table
+sqoop import \
+--connect jdbc:mysql://cxln2.c.thelab-240901.internal/retail_db \
+--username sqoopuser \
+--password NHkkP876rp \
+--table orders \
+--hive-import \
+--hive-database jainaviral901015
+
+# Overwrite the hive table
+sqoop import \
+--connect jdbc:mysql://cxln2.c.thelab-240901.internal/retail_db \
+--username sqoopuser \
+--password NHkkP876rp \
+--table orders \
+--hive-import \
+--hive-database jainaviral901015 \
+--hive-overwrite
+
+# If table does not exist create the table if already exists throw an error
+sqoop import \
+--connect jdbc:mysql://cxln2.c.thelab-240901.internal/retail_db \
+--username sqoopuser \
+--password NHkkP876rp \
+--table orders \
+--hive-import \
+--hive-database jainaviral901015 \
+--create-hive-table
+
+# To check the execution flow use verbose
+sqoop import \
+--connect jdbc:mysql://cxln2.c.thelab-240901.internal/retail_db \
+--username sqoopuser \
+--password NHkkP876rp \
+--table orders \
+--hive-import \
+--hive-database jainaviral901015 \
+--hive-overwrite \
+--verbose 1>sqoop_out 2>sqoop.err
